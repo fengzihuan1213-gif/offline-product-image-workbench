@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>离线产品图工作台</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">▧</span><div><h1>离线产品图工作台</h1><p>抠图、合成与图层编辑</p></div></div>
+    <div class="header-right"><span id="service-state" class="status-chip">正在连接本机</span><button id="save-project" class="button quiet">保存项目</button></div>
+  </header>
+  <nav class="tabs" aria-label="工作区">
+    <button class="tab active" data-tab="compose" aria-current="page">合成工作台</button>
+    <button class="tab" data-tab="split">长图分段</button>
+    <button class="tab" data-tab="layers">图片分层</button>
+    <button class="tab" data-tab="projects">本地项目</button>
+    <span class="offline-note">素材与处理结果保存在本机</span>
+  </nav>
+  <div id="engine-notice" class="notice hidden" role="status"></div>
+  <main>
+    <section id="panel-compose" class="tab-panel active">
+      <aside class="controls">
+        <section class="control-section"><div class="section-title"><h2>放入产品</h2></div>
+          <label class="upload-box" for="product-input"><span class="upload-symbol">＋</span><strong>选择产品实拍</strong><span>PNG / JPG / WEBP · 可直接拖入文件</span><input id="product-input" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
+          <div id="product-summary" class="asset-summary hidden"></div>
+          <div class="button-row"><button id="auto-cutout" class="button primary" disabled>自动抠图</button><button id="refine-cutout" class="button" disabled>修整边缘</button></div>
+          <a id="download-cutout" class="text-button hidden" download="产品_透明图.png">导出透明产品图</a>
+          <p class="hint">透明或高反光部位请放大检查；可用画笔擦除或恢复细节。</p>
+        </section>
+        <section class="control-section"><div class="section-title"><h2>选择背景</h2></div>
+          <label class="upload-box small" for="background-input"><strong>选择背景图片</strong><span>自动铺满画布，保持背景比例</span><input id="background-input" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
+          <div id="background-summary" class="asset-summary hidden"></div>
+          <button id="clear-background" class="text-button hidden">使用纯白背景</button>
+        </section>
+        <section class="control-section"><div class="section-title"><h2>摆放与光影</h2></div>
+          <div class="field-pair"><label>画布宽度<input id="output-width" type="number" min="256" max="6000" step="1" value="1000"></label><label>画布高度<input id="output-height" type="number" min="256" max="6000" step="1" value="1000"></label></div>
+          <label class="range-label">产品大小 <output id="scale-value">75%</output><input id="scale" type="range" min="0.10" max="1.60" step="0.01" value="0.75"></label>
+          <label class="range-label">旋转 <output id="rotation-value">0°</output><input id="rotation" type="range" min="-180" max="180" step="1" value="0"></label>
+          <button id="center-product" class="text-button">回到画布中心</button>
+          <button id="auto-light" class="button full" disabled>自动匹配光线与阴影</button>
+          <p id="light-note" class="hint" aria-live="polite">导入产品和背景后，将根据背景亮度估计光影参数。</p>
+          <details open><summary>接地阴影</summary>
+            <label class="range-label">浓度 <output id="shadow-opacity-value">22%</output><input id="shadow-opacity" type="range" min="0" max="0.80" step="0.01" value="0.22"></label>
+            <label class="range-label">柔和程度 <output id="shadow-blur-value">18</output><input id="shadow-blur" type="range" min="0" max="80" step="1" value="18"></label>
+            <div class="field-pair"><label>左右偏移<input id="shadow-x" type="number" min="-300" max="300" value="0"></label><label>上下偏移<input id="shadow-y" type="number" min="-300" max="300" value="12"></label></div>
+            <label class="range-label">铺开范围 <output id="shadow-spread-value">100%</output><input id="shadow-spread" type="range" min="0.25" max="2" step="0.05" value="1"></label>
+          </details>
+          <details><summary>产品光线</summary>
+            <label class="range-label">明暗 <output id="brightness-value">100%</output><input id="brightness" type="range" min="0.50" max="1.50" step="0.01" value="1"></label>
+            <label class="range-label">对比 <output id="contrast-value">100%</output><input id="contrast" type="range" min="0.50" max="1.50" step="0.01" value="1"></label>
+            <label class="range-label">色彩 <output id="saturation-value">100%</output><input id="saturation" type="range" min="0" max="1.50" step="0.01" value="1"></label>
+            <label class="range-label">冷暖 <output id="warmth-value">0</output><input id="warmth" type="range" min="-30" max="30" step="1" value="0"></label>
+            <p class="hint">此处调整明暗和色彩，不会重建真实的三维反射。</p>
+          </details>
+        </section>
+      </aside>
+      <div class="workspace">
+        <div class="workspace-bar"><div><h2>画布预览</h2><p id="preview-subtitle">先放入一张产品图，再开始处理</p></div><div class="button-row"><button id="reset-compose" class="button quiet">重置调整</button><button id="render-composite" class="button primary" disabled>生成合成图</button></div></div>
+        <div class="canvas-stage" id="compose-stage"><canvas id="compose-canvas" width="800" height="800" aria-label="合成画布，可拖动产品调整位置"></canvas><div id="compose-empty" class="empty-overlay"><span>▧</span><h3>选择一张产品图</h3><p>可导入实拍或已经抠好的透明 PNG。</p></div></div>
+        <div class="canvas-footer"><span id="preview-kind">可拖动产品调整位置 · 预览光影以生成结果为准</span><a id="download-composite" class="button primary hidden" download>导出合成图片</a></div>
+      </div>
+    </section>
+    <section id="panel-split" class="tab-panel">
+      <aside class="controls"><section class="control-section"><div class="section-title"><h2>长图分段</h2></div><p class="intro">根据留白和画面变化寻找分界，生成独立图片。</p>
+        <label class="upload-box" for="split-input"><span class="upload-symbol">＋</span><strong>选择长详情图</strong><span>支持竖向长图</span><input id="split-input" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
+        <div id="split-summary" class="asset-summary hidden"></div>
+        <div class="field-pair"><label>最小段高<input id="split-min" type="number" min="80" max="10000" value="250"></label><label>最大段高<input id="split-max" type="number" min="100" max="20000" value="1600"></label></div>
+        <label class="range-label">留白判断 <output id="split-threshold-value">97%</output><input id="split-threshold" type="range" min="0.70" max="1" step="0.01" value="0.97"></label>
+        <button id="auto-split" class="button primary full" disabled>自动寻找分段</button>
+        <label class="stack-label">手动调整切点<textarea id="split-cuts" rows="5" placeholder="例如：1200, 2450, 3700"></textarea></label>
+        <p class="hint">切点是原图中的纵向像素位置。也可以点击右侧长图添加或移除分割线。</p>
+        <button id="apply-cuts" class="button full" disabled>按当前切点拆分</button>
+      </section></aside>
+      <div class="workspace"><div class="workspace-bar"><div><h2>检查分割位置</h2><p id="split-status">选择图片后可预览分割线</p></div></div><div class="split-workspace"><div id="split-source-wrap" class="split-source-wrap"><p class="empty-inline">原图会显示在这里</p></div><div class="split-out"><a id="download-split" class="button hidden" download>导出全部分段</a><div id="split-results" class="result-grid"></div></div></div></div>
+    </section>
+    <section id="panel-layers" class="tab-panel">
+      <aside class="controls"><section class="control-section"><div class="section-title"><h2>图片分层</h2></div><p class="intro">分出产品、文字和背景，逐层检查并继续编辑。</p>
+        <label class="upload-box" for="layers-input"><span class="upload-symbol">＋</span><strong>选择需要分层的图片</strong><span>产品图或带文字的详情图片</span><input id="layers-input" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
+        <div id="layers-summary" class="asset-summary hidden"></div>
+        <label class="checkbox-label"><input id="repair-background" type="checkbox">修补被遮挡的背景</label><p class="hint">修补只能估计缺失区域，不代表真实的原始背景。</p>
+        <button id="auto-layers" class="button primary full" disabled>自动拆分图层</button>
+      </section><section class="control-section"><h2>图层与文字</h2><div id="layer-list" class="layer-list"><p class="hint">完成拆分后，可切换图层显示并修改识别文字。</p></div></section></aside>
+      <div class="workspace"><div class="workspace-bar"><div><h2>分层预览</h2><p id="layers-status">文字识别结果需要人工核对</p></div><div class="button-row"><button id="export-layer-preview" class="button" disabled>导出当前画面</button><a id="download-layers" class="button primary hidden" download>导出全部图层</a></div></div><div class="canvas-stage"><canvas id="layers-canvas" width="800" height="800" aria-label="分层效果预览"></canvas><div id="layers-empty" class="empty-overlay"><span>▱</span><h3>把平面图片拆开</h3><p>产品、背景与文字，分别保留。</p></div></div><div id="layers-warnings" class="notice hidden"></div></div>
+    </section>
+    <section id="panel-projects" class="tab-panel"><div class="projects-view"><div class="workspace-bar"><div><h2>本地项目</h2><p>恢复产品、背景和调整参数，接着上次的工作。</p></div><button id="refresh-projects" class="button">刷新列表</button></div><div id="project-list" class="project-grid"></div></div></section>
+  </main>
+  <footer class="app-footer"><span id="engine-summary">正在检查离线组件…</span><button id="shutdown-app" class="text-button">退出本机服务</button></footer>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div id="busy" class="busy hidden" role="status"><span class="spinner"></span><div><strong id="busy-title">正在处理</strong><p>所有图像处理都在这台电脑上完成</p></div></div>
+  <dialog id="refine-dialog" class="refine-dialog"><div class="dialog-head"><div><h2>修整抠图边缘</h2><p>擦掉多余背景，或从原图恢复被误删的部分。</p></div><button id="close-refine" class="button quiet">取消</button></div><div class="refine-toolbar"><div class="button-row"><button id="brush-erase" class="button selected">擦除</button><button id="brush-restore" class="button">恢复</button><button id="brush-undo" class="button" disabled>撤销一笔</button></div><label>画笔大小 <input id="brush-size" type="range" min="2" max="180" value="30"><output id="brush-size-value">30</output></label><label>缩放 <select id="refine-zoom"><option value="fit">适合窗口</option><option value="1">100%</option><option value="2">200%</option></select></label></div><div id="refine-stage" class="refine-stage"><canvas id="refine-canvas" aria-label="可擦除或恢复的产品透明图"></canvas></div><div class="dialog-foot"><span class="hint">棋盘格表示透明区域 · 边缘修整后保留原始像素尺寸</span><button id="apply-refine" class="button primary">应用修整</button></div></dialog>
+  <dialog id="save-dialog" class="small-dialog"><form id="save-form"><h2>保存到本地项目</h2><label class="stack-label">项目名称<input id="project-name" maxlength="80" required placeholder="例如：雪平锅 · 大理石场景"></label><div class="dialog-foot"><button id="cancel-save" type="button" class="button">取消</button><button type="submit" class="button primary">保存项目</button></div></form></dialog>
+</body>
+</html>

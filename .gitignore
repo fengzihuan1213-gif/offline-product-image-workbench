@@ -1,0 +1,15 @@
+.venv/
+venv/
+data/
+models/
+__pycache__/
+*.py[cod]
+*.onnx
+*.part
+*.lnk
+.env
+.env.*
+*.log
+*.zip
+.DS_Store
+Thumbs.db
